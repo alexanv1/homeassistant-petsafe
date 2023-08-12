@@ -23,9 +23,9 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigEntry, add_entiti
         entities.append(
             SwitchEntities.PetSafeFeederSwitchEntity(
                 hass=hass,
-                name="Feeding Paused",
-                device_type="feeding_paused",
-                icon="mdi:pause",
+                name="Schedule",
+                device_type="schedule",
+                icon="mdi:calendar-month",
                 device=feeder,
                 coordinator=coordinator,
                 entity_category=EntityCategory.CONFIG,

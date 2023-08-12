@@ -121,8 +121,8 @@ class PetSafeFeederSwitchEntity(PetSafeSwitchEntity):
         )
         if self._device_type == "child_lock":
             self._attr_is_on = feeder.is_locked
-        elif self._device_type == "feeding_paused":
-            self._attr_is_on = feeder.is_paused
+        elif self._device_type == "schedule":
+            self._attr_is_on = not feeder.is_paused
         elif self._device_type == "slow_feed":
             self._attr_is_on = feeder.is_slow_feed
 
@@ -135,15 +135,19 @@ class PetSafeFeederSwitchEntity(PetSafeSwitchEntity):
     async def async_turn_on(self, **kwargs: Any) -> None:
         if self._device_type == "child_lock":
             await self._device.lock(True)
-        elif self._device_type == "feeding_paused":
-            await self._device.pause(True)
+        elif self._device_type == "schedule":
+            await self._device.pause(False)
         elif self._device_type == "slow_feed":
             await self._device.slow_feed(True)
+
+        await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         if self._device_type == "child_lock":
             await self._device.lock(False)
-        elif self._device_type == "feeding_paused":
-            await self._device.pause(False)
+        elif self._device_type == "schedule":
+            await self._device.pause(True)
         elif self._device_type == "slow_feed":
             await self._device.slow_feed(False)
+
+        await self.coordinator.async_request_refresh()
