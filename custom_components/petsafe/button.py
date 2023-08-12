@@ -28,6 +28,15 @@ async def async_setup_entry(hass: HomeAssistant, config: ConfigEntry, add_entiti
                 coordinator=coordinator,
             )
         )
+        entities.append(
+            ButtonEntities.PetSafeFeederButtonEntity(
+                hass=hass,
+                name="Repeat Last Feeding",
+                device_type="repeat_last_feeding",
+                device=feeder,
+                coordinator=coordinator,
+            )
+        )
     for litterbox in litterboxes:
         entities.append(
             ButtonEntities.PetSafeLitterboxButtonEntity(

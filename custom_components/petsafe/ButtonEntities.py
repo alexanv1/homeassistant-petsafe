@@ -106,4 +106,7 @@ class PetSafeFeederButtonEntity(PetSafeButtonEntity):
     async def async_press(self) -> None:
         if self._device_type == "feed":
             await self._device.feed(1, None, False)
+        elif self._device_type == "repeat_last_feeding":
+            last_feeding = await self._device.get_last_feeding()
+            await self._device.feed(last_feeding['payload']['amount'], None, False)
         await self.coordinator.async_request_refresh()

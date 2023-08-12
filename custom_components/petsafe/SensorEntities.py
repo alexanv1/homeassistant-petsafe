@@ -1,4 +1,5 @@
-import datetime
+from datetime import datetime, timedelta
+from dateutil import tz
 import time
 
 import pytz
@@ -121,7 +122,7 @@ class PetSafeLitterboxSensorEntity(PetSafeSensorEntity):
             reversed_events = reversed(events["data"])
             for item in reversed_events:
                 if item["payload"]["code"] == RAKE_FINISHED:
-                    self._attr_native_value = datetime.datetime.fromtimestamp(
+                    self._attr_native_value = datetime.fromtimestamp(
                         int(item["payload"]["timestamp"]) / 1000, pytz.timezone("UTC")
                     )
                     break
@@ -193,7 +194,7 @@ class PetSafeFeederSensorEntity(PetSafeSensorEntity):
             model=device.product_name or FEEDER_MODEL_GEN1,
         )
 
-        if self._device_type == "last_feeding":
+        if self._device_type == "last_feeding" or self._device_type == "last_feeding_description":
             self._attr_should_poll = True
         else:
             self._attr_should_poll = False
@@ -213,8 +214,15 @@ class PetSafeFeederSensorEntity(PetSafeSensorEntity):
             else:
                 status = "empty"
             self._attr_native_value = status
+        elif self._device_type == "connection_status":
+            self._attr_native_value = feeder.data["connection_status"]
         elif self._device_type == "signal_strength":
             self._attr_native_value = feeder.data["network_rssi"]
+        elif self._device_type == "feeding_schedule":
+            schedules = {}
+            for schedule in feeder.data["schedules"]:
+                schedules[schedule["time"]] = f'{float(schedule["amount"]) / 8} cups'
+            self._attr_native_value = schedules
 
         if self._attr_should_poll:
             self.schedule_update_ha_state(True)
@@ -224,14 +232,25 @@ class PetSafeFeederSensorEntity(PetSafeSensorEntity):
 
     async def async_update(self) -> None:
 
+        if self._device_type != "last_feeding" and self._device_type != "last_feeding_description":
+            return await super().async_update()
+
+        data: PetSafeData = self.coordinator.data
+        feeder: petsafe.devices.DeviceSmartFeed = next(
+            x for x in data.feeders if x.api_name == self._api_name
+        )
+        feeding = await feeder.get_last_feeding()     
+        
         if self._device_type == "last_feeding":
-            data: PetSafeData = self.coordinator.data
-            feeder: petsafe.devices.DeviceSmartFeed = next(
-                x for x in data.feeders if x.api_name == self._api_name
-            )
-            feeding = await feeder.get_last_feeding()
-            self._attr_native_value = datetime.datetime.fromtimestamp(
+            self._attr_native_value = datetime.fromtimestamp(
                 feeding["payload"]["time"], pytz.timezone("UTC")
-            )
+        else:
+            last_feeding_utc = datetime.strptime(feeding['created_at'], '%Y-%m-%d %H:%M:%S').replace(tzinfo=tz.tzutc())
+            last_feeding_local = last_feeding_utc.astimezone(None)
+        
+            last_feeding_local_string = last_feeding_local.strftime('%x %H:%M')
+            last_feeding_amount = feeding['payload']['amount']
+
+            self._attr_native_value = f'Last: {last_feeding_local_string}, {last_feeding_amount / 8} cups'
 
         return await super().async_update()
