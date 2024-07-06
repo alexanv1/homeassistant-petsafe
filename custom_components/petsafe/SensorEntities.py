@@ -11,7 +11,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 import petsafe
 
-from . import PetSafeCoordinator, PetSafeData
+from . import PetSafeCoordinator, PetSafeData, async_to_sync
 from .const import (
     CAT_IN_BOX,
     DOMAIN,
@@ -47,6 +47,7 @@ class PetSafeSensorEntity(CoordinatorEntity, SensorEntity):
         self._attr_icon = icon
         self._device_type = device_type
         self._attr_entity_category = entity_category
+        self._hass = hass
 
         if device_class == "signal_strength":
             self._attr_native_unit_of_measurement = SIGNAL_STRENGTH_DECIBELS
@@ -231,6 +232,9 @@ class PetSafeFeederSensorEntity(PetSafeSensorEntity):
         else:
             self.async_write_ha_state()
         return super()._handle_coordinator_update()
+    
+    def get_last_feeding(self):
+        return async_to_sync(self._feeder.get_last_feeding())
 
     async def async_update(self) -> None:
 
@@ -239,7 +243,7 @@ class PetSafeFeederSensorEntity(PetSafeSensorEntity):
         
         if self._update_counter is None or self._update_counter == 20:
             self._update_counter = 0
-            self._last_feeding = await self._feeder.get_last_feeding()
+            self._last_feeding = await self._hass.async_add_executor_job(self.get_last_feeding)
         else:
             self._update_counter += 1
 

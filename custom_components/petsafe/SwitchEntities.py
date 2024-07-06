@@ -7,7 +7,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 import petsafe
 
-from . import PetSafeCoordinator, PetSafeData
+from . import PetSafeCoordinator, PetSafeData, async_to_sync
 from .const import DOMAIN, FEEDER_MODEL_GEN1, MANUFACTURER
 
 
@@ -34,6 +34,7 @@ class PetSafeSwitchEntity(CoordinatorEntity, SwitchEntity):
         self._attr_icon = icon
         self._device_type = device_type
         self._attr_entity_category = entity_category
+        self._hass = hass
 
 
 class PetSafeLitterboxSwitchEntity(PetSafeSwitchEntity):
@@ -131,23 +132,32 @@ class PetSafeFeederSwitchEntity(PetSafeSwitchEntity):
 
     async def async_update(self) -> None:
         return await super().async_update()
+    
+    def set_lock(self, value: bool):
+        return async_to_sync(self._device.lock(value))
+    
+    def set_pause(self, value: bool):
+        return async_to_sync(self._device.pause(value))
+    
+    def set_slow_feed(self, value: bool):
+        return async_to_sync(self._device.slow_feed(value))
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         if self._device_type == "child_lock":
-            await self._device.lock(True)
+            await self._hass.async_add_executor_job(self.set_lock, True)
         elif self._device_type == "schedule":
-            await self._device.pause(False)
+            await self._hass.async_add_executor_job(self.set_pause, False)
         elif self._device_type == "slow_feed":
-            await self._device.slow_feed(True)
+            await self._hass.async_add_executor_job(self.set_slow_feed, True)
 
         await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         if self._device_type == "child_lock":
-            await self._device.lock(False)
+            await self._hass.async_add_executor_job(self.set_lock, False)
         elif self._device_type == "schedule":
-            await self._device.pause(True)
+            await self._hass.async_add_executor_job(self.set_pause, True)
         elif self._device_type == "slow_feed":
-            await self._device.slow_feed(False)
+            await self._hass.async_add_executor_job(self.set_slow_feed, False)
 
         await self.coordinator.async_request_refresh()

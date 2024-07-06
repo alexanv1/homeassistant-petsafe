@@ -46,6 +46,13 @@ PLATFORMS: list[Platform] = [
     Platform.SELECT,
 ]
 
+def async_to_sync(awaitable):
+    try:
+        loop = asyncio.get_event_loop()
+    except:
+        return asyncio.run(awaitable)
+
+    return loop.run_until_complete(awaitable)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up PetSafe Integration from a config entry."""
@@ -236,12 +243,18 @@ class PetSafeCoordinator(DataUpdateCoordinator):
         self._device_lock = asyncio.Lock()
         self.entry = entry
 
+    def api_get_litterboxes(self):
+        return async_to_sync(self.api.get_litterboxes())
+
+    def api_get_feeders(self):
+        return async_to_sync(self.api.get_feeders())
+
     async def get_feeders(self) -> list[petsafe.devices.DeviceSmartFeed]:
         """Return the list of feeders."""
         async with self._device_lock:
             try:
                 if self._feeders is None:
-                    self._feeders = await self.api.get_feeders()
+                    self._feeders = await self.hass.async_add_executor_job(self.api_get_feeders) 
             except httpx.HTTPStatusError as ex:
                 if ex.response.status_code in (401, 403):
                     await self.entry.async_start_reauth(self.hass)
@@ -254,7 +267,7 @@ class PetSafeCoordinator(DataUpdateCoordinator):
         async with self._device_lock:
             try:
                 if self._litterboxes is None:
-                    self._litterboxes = await self.api.get_litterboxes()
+                    self._litterboxes = await self.hass.async_add_executor_job(self.api_get_litterboxes) 
             except httpx.HTTPStatusError as ex:
                 if ex.response.status_code in (401, 403):
                     await self.entry.async_start_reauth(self.hass)
@@ -266,8 +279,8 @@ class PetSafeCoordinator(DataUpdateCoordinator):
         """Fetch data from API endpoint."""
         try:
             async with self._device_lock:
-                self._feeders = await self.api.get_feeders()
-                self._litterboxes = await self.api.get_litterboxes()
+                self._feeders = await self.hass.async_add_executor_job(self.api_get_feeders) 
+                self._litterboxes = await self.hass.async_add_executor_job(self.api_get_litterboxes) 
                 return PetSafeData(self._feeders, self._litterboxes)
         except httpx.HTTPStatusError as ex:
             if ex.response.status_code in (401, 403):
