@@ -239,7 +239,11 @@ class PetSafeFeederSensorEntity(PetSafeSensorEntity):
         feeder: petsafe.devices.DeviceSmartFeed = next(
             x for x in data.feeders if x.api_name == self._api_name
         )
-        feeding = await feeder.get_last_feeding()     
+        feeding = await feeder.get_last_feeding()
+
+        if feeding is None:
+              self._attr_native_value = None
+              return await super().async_update()
         
         if self._device_type == "last_feeding":
             self._attr_native_value = datetime.fromtimestamp(
