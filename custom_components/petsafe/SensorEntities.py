@@ -244,6 +244,7 @@ class PetSafeFeederSensorEntity(PetSafeSensorEntity):
         if self._device_type == "last_feeding":
             self._attr_native_value = datetime.fromtimestamp(
                 feeding["payload"]["time"], pytz.timezone("UTC")
+            )
         else:
             last_feeding_utc = datetime.strptime(feeding['created_at'], '%Y-%m-%d %H:%M:%S').replace(tzinfo=tz.tzutc())
             last_feeding_local = last_feeding_utc.astimezone(None)
