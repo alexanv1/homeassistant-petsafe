@@ -172,6 +172,7 @@ class PetSafeFeederSensorEntity(PetSafeSensorEntity):
         device_class: str = None,
         entity_category: str = None,
     ):
+        self._update_counter = -1
         self._feeder = device
 
         super().__init__(
@@ -234,6 +235,12 @@ class PetSafeFeederSensorEntity(PetSafeSensorEntity):
 
         if self._device_type != "last_feeding" and self._device_type != "last_feeding_description":
             return await super().async_update()
+
+        if (self._update_counter >= 0 and self._update_counter < 10):
+            self._update_counter += 1
+            return
+
+        self._update_counter = 0
 
         data: PetSafeData = self.coordinator.data
         feeder: petsafe.devices.DeviceSmartFeed = next(
